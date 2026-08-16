@@ -307,6 +307,7 @@
     renderRateInfo();
     resetLoopPoints();
     syncAnchorContentTime = null;
+    lastValidOriginalBpm = null;
     document.getElementById('beatAnchorDisplay').textContent = '拍の基準: 未設定';
     updateMetroSyncInfo();
   }
@@ -450,13 +451,24 @@
   const LOOKAHEAD_MS = 25;
   let tapTimestamps = [];
   let syncAnchorContentTime = null;
+  let lastValidOriginalBpm = null;
 
   function getMetroMode() {
     return document.querySelector('input[name="metroMode"]:checked').value;
   }
 
+  function getEffectiveOriginalBpm() {
+    const raw = parseFloat(document.getElementById('originalBpm').value);
+    if (raw > 0) {
+      lastValidOriginalBpm = raw;
+      return raw;
+    }
+    // 入力中で一時的に空欄になっている場合など、直前の有効値を使い続ける
+    return lastValidOriginalBpm;
+  }
+
   function getSyncedBpm() {
-    const original = parseFloat(document.getElementById('originalBpm').value);
+    const original = getEffectiveOriginalBpm();
     if (!original || !playerReady) return null;
     return original * currentRate;
   }
@@ -497,7 +509,7 @@
     if (!audioCtx || !isMetroPlaying) return;
     if (getMetroMode() !== 'sync') return;
     if (syncAnchorContentTime === null || !playerReady) return;
-    const originalBpm = parseFloat(document.getElementById('originalBpm').value);
+    const originalBpm = getEffectiveOriginalBpm();
     if (!originalBpm) return;
     const beatIntervalContent = 60 / originalBpm;
     const videoNow = player.getCurrentTime();
