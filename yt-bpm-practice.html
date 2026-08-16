@@ -382,6 +382,7 @@
   });
 
   // --- A-Bリピート(区間ループ) ---
+  const MIN_LOOP_GAP = 0.5; // 秒。これより短い区間は作らせない
   let loopA = null;
   let loopB = null;
 
@@ -401,13 +402,23 @@
 
   document.getElementById('setABtn').addEventListener('click', () => {
     if (!playerReady) { alert('先に動画を読み込んでください。'); return; }
-    loopA = player.getCurrentTime();
+    const candidate = player.getCurrentTime();
+    if (loopB !== null && loopB - candidate < MIN_LOOP_GAP) {
+      alert(`A地点はB地点より${MIN_LOOP_GAP}秒以上前にしてください。`);
+      return;
+    }
+    loopA = candidate;
     document.getElementById('loopADisplay').textContent = `A: ${formatTime(loopA)}`;
   });
 
   document.getElementById('setBBtn').addEventListener('click', () => {
     if (!playerReady) { alert('先に動画を読み込んでください。'); return; }
-    loopB = player.getCurrentTime();
+    const candidate = player.getCurrentTime();
+    if (loopA !== null && candidate - loopA < MIN_LOOP_GAP) {
+      alert(`B地点はA地点より${MIN_LOOP_GAP}秒以上後にしてください。`);
+      return;
+    }
+    loopB = candidate;
     document.getElementById('loopBDisplay').textContent = `B: ${formatTime(loopB)}`;
   });
 
