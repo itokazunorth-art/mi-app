@@ -379,7 +379,9 @@
     currentRate = event.data;
     renderRateInfo();
     updateMetroSyncInfo();
-    resyncToVideoBeat();
+    // 位相合わせ(resyncToVideoBeat)はここでは呼ばない: テンポはスケジューラーが
+    // 毎回最新のBPMを読みに行くので自動で追従する。resyncは次のクリックを強制的に
+    // ずらすため、速度を変えるたびに一瞬無音になってしまう。
   }
 
   function handleNewVideoIfReady() {
@@ -618,10 +620,6 @@
     updateMetroSyncInfo();
     resyncToVideoBeat();
   });
-
-  setInterval(() => {
-    if (isMetroPlaying && getMetroMode() === 'sync') resyncToVideoBeat();
-  }, 3000);
 
   function scheduleClick(beatNumber, time) {
     const osc = audioCtx.createOscillator();
