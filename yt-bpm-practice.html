@@ -166,6 +166,7 @@
   let playerReady = false;
   let availableRates = [1];
   let currentVideoId = null;
+  let titleFilledForVideoId = null;
 
   function extractVideoId(url) {
     const patterns = [
@@ -195,7 +196,8 @@
       width: '100%',
       videoId: currentVideoId,
       events: {
-        onReady: onPlayerReady
+        onReady: onPlayerReady,
+        onStateChange: onPlayerStateChange
       }
     });
   }
@@ -203,10 +205,23 @@
   function onPlayerReady() {
     playerReady = true;
     availableRates = player.getAvailablePlaybackRates();
+    handleNewVideoIfReady();
+  }
+
+  function onPlayerStateChange() {
+    handleNewVideoIfReady();
+  }
+
+  function handleNewVideoIfReady() {
+    if (!playerReady) return;
     const data = player.getVideoData();
-    if (data && data.title) {
+    if (!data || data.video_id !== currentVideoId) return;
+    if (titleFilledForVideoId === currentVideoId) return;
+    titleFilledForVideoId = currentVideoId;
+    if (data.title) {
       document.getElementById('videoTitle').value = data.title;
     }
+    player.setPlaybackRate(1);
     updateRateInfo();
   }
 
@@ -233,6 +248,14 @@
     el.innerHTML = text;
   }
 
+  const urlInput = document.getElementById('videoUrl');
+  urlInput.addEventListener('focus', function () {
+    this.select();
+  });
+  urlInput.addEventListener('mouseup', function (e) {
+    e.preventDefault();
+  });
+
   document.getElementById('loadBtn').addEventListener('click', () => {
     const url = document.getElementById('videoUrl').value.trim();
     const videoId = extractVideoId(url);
@@ -241,12 +264,12 @@
       return;
     }
     currentVideoId = videoId;
+    titleFilledForVideoId = null;
     if (!window.YT || !window.YT.Player) {
       loadYouTubeApi();
     } else if (!player) {
       createPlayer();
     } else {
-      playerReady = false;
       player.loadVideoById(videoId);
     }
   });
