@@ -214,6 +214,8 @@
     <input type="number" id="metroBpm" min="20" max="300" value="120">
     <button id="tapTempoBtn" class="secondary">タップでBPM測定</button>
     <div class="rate-info" id="metroSyncInfo"></div>
+    <button id="setBeatAnchorBtn" class="secondary">現在位置を拍の頭に同期</button>
+    <div class="loop-time" id="beatAnchorDisplay">拍の基準: 未設定</div>
     <div class="metro-controls">
       <button id="metroToggleBtn">再生</button>
       <div class="beat-indicator" id="beatIndicator"></div>
@@ -287,6 +289,7 @@
     currentRate = event.data;
     renderRateInfo();
     updateMetroSyncInfo();
+    resyncToVideoBeat();
   }
 
   function handleNewVideoIfReady() {
@@ -303,6 +306,8 @@
     currentRate = player.getPlaybackRate();
     renderRateInfo();
     resetLoopPoints();
+    syncAnchorContentTime = null;
+    document.getElementById('beatAnchorDisplay').textContent = '拍の基準: 未設定';
     updateMetroSyncInfo();
   }
 
@@ -444,6 +449,7 @@
   const SCHEDULE_AHEAD_TIME = 0.1;
   const LOOKAHEAD_MS = 25;
   let tapTimestamps = [];
+  let syncAnchorContentTime = null;
 
   function getMetroMode() {
     return document.querySelector('input[name="metroMode"]:checked').value;
@@ -467,18 +473,53 @@
     const el = document.getElementById('metroSyncInfo');
     if (getMetroMode() === 'sync') {
       const synced = getSyncedBpm();
-      el.innerHTML = synced
-        ? `<b>動画同期BPM: ${synced.toFixed(1)}</b>(原曲BPM × 現在の再生速度)`
-        : '原曲BPMを入力し、動画を読み込むと自動追従します。';
+      if (!synced) {
+        el.innerHTML = '原曲BPMを入力し、動画を読み込むと自動追従します。';
+      } else if (syncAnchorContentTime === null) {
+        el.innerHTML = `<b>動画同期BPM: ${synced.toFixed(1)}</b>(原曲BPM × 現在の再生速度)<br>※タイミングを曲に合わせるには、曲の拍の頭で「現在位置を拍の頭に同期」を押してください。`;
+      } else {
+        el.innerHTML = `<b>動画同期BPM: ${synced.toFixed(1)}</b>(原曲BPM × 現在の再生速度)`;
+      }
     } else {
       el.textContent = '';
     }
   }
 
   document.querySelectorAll('input[name="metroMode"]').forEach(el => {
-    el.addEventListener('change', updateMetroSyncInfo);
+    el.addEventListener('change', () => {
+      updateMetroSyncInfo();
+      resyncToVideoBeat();
+    });
   });
   document.getElementById('originalBpm').addEventListener('input', updateMetroSyncInfo);
+
+  function resyncToVideoBeat() {
+    if (!audioCtx || !isMetroPlaying) return;
+    if (getMetroMode() !== 'sync') return;
+    if (syncAnchorContentTime === null || !playerReady) return;
+    const originalBpm = parseFloat(document.getElementById('originalBpm').value);
+    if (!originalBpm) return;
+    const beatIntervalContent = 60 / originalBpm;
+    const videoNow = player.getCurrentTime();
+    let phase = (videoNow - syncAnchorContentTime) % beatIntervalContent;
+    if (phase < 0) phase += beatIntervalContent;
+    const contentToNextBeat = (beatIntervalContent - phase) % beatIntervalContent;
+    const wallToNextBeat = contentToNextBeat / (currentRate || 1);
+    nextNoteTime = audioCtx.currentTime + wallToNextBeat;
+    beatInBar = 0;
+  }
+
+  document.getElementById('setBeatAnchorBtn').addEventListener('click', () => {
+    if (!playerReady) { alert('先に動画を読み込んでください。'); return; }
+    syncAnchorContentTime = player.getCurrentTime();
+    document.getElementById('beatAnchorDisplay').textContent = `拍の基準: ${formatTime(syncAnchorContentTime)}`;
+    updateMetroSyncInfo();
+    resyncToVideoBeat();
+  });
+
+  setInterval(() => {
+    if (isMetroPlaying && getMetroMode() === 'sync') resyncToVideoBeat();
+  }, 3000);
 
   function scheduleClick(beatNumber, time) {
     const osc = audioCtx.createOscillator();
@@ -527,6 +568,7 @@
     isMetroPlaying = true;
     beatInBar = 0;
     nextNoteTime = audioCtx.currentTime + 0.05;
+    resyncToVideoBeat();
     metroScheduler();
     document.getElementById('metroToggleBtn').textContent = '停止';
   });
