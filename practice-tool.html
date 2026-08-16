@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>練習ツール</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+    max-width: 480px;
+    margin: 40px auto;
+    padding: 0 16px;
+    background: #f5f5f7;
+    color: #1d1d1f;
+  }
+  h1 {
+    font-size: 1.5rem;
+    text-align: center;
+  }
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    text-align: center;
+  }
+  .question {
+    font-size: 2rem;
+    font-weight: bold;
+    margin: 16px 0;
+  }
+  input[type="number"] {
+    font-size: 1.2rem;
+    padding: 8px 12px;
+    width: 100px;
+    text-align: center;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+  }
+  button {
+    font-size: 1rem;
+    padding: 10px 20px;
+    margin: 8px 4px 0;
+    border: none;
+    border-radius: 8px;
+    background: #0071e3;
+    color: #fff;
+    cursor: pointer;
+  }
+  button:hover {
+    background: #0059b3;
+  }
+  .result {
+    margin-top: 12px;
+    font-weight: bold;
+    min-height: 1.5em;
+  }
+  .correct { color: #1a7f37; }
+  .wrong { color: #d1242f; }
+  .score {
+    margin-top: 16px;
+    font-size: 0.9rem;
+    color: #555;
+  }
+</style>
+</head>
+<body>
+  <h1>計算練習ツール</h1>
+  <div class="card">
+    <div class="question" id="question">-</div>
+    <input type="number" id="answer" autofocus>
+    <div>
+      <button id="submitBtn">答える</button>
+      <button id="nextBtn">次の問題</button>
+    </div>
+    <div class="result" id="result"></div>
+    <div class="score" id="score">正解数: 0 / 0</div>
+  </div>
+
+<script>
+  let current = {};
+  let correctCount = 0;
+  let totalCount = 0;
+
+  function randInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function newQuestion() {
+    const ops = ['+', '-', '×'];
+    const op = ops[randInt(0, ops.length - 1)];
+    let a = randInt(1, 20);
+    let b = randInt(1, 20);
+    if (op === '-' && a < b) [a, b] = [b, a];
+    if (op === '×') { a = randInt(1, 12); b = randInt(1, 12); }
+
+    let answer;
+    if (op === '+') answer = a + b;
+    else if (op === '-') answer = a - b;
+    else answer = a * b;
+
+    current = { text: `${a} ${op} ${b} = ?`, answer };
+    document.getElementById('question').textContent = current.text;
+    document.getElementById('answer').value = '';
+    document.getElementById('answer').focus();
+    document.getElementById('result').textContent = '';
+  }
+
+  function checkAnswer() {
+    const input = document.getElementById('answer');
+    const userAnswer = Number(input.value);
+    const resultEl = document.getElementById('result');
+    totalCount++;
+
+    if (input.value !== '' && userAnswer === current.answer) {
+      correctCount++;
+      resultEl.textContent = '正解！';
+      resultEl.className = 'result correct';
+    } else {
+      resultEl.textContent = `不正解… 正解は ${current.answer}`;
+      resultEl.className = 'result wrong';
+    }
+    document.getElementById('score').textContent = `正解数: ${correctCount} / ${totalCount}`;
+  }
+
+  document.getElementById('submitBtn').addEventListener('click', checkAnswer);
+  document.getElementById('nextBtn').addEventListener('click', newQuestion);
+  document.getElementById('answer').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') checkAnswer();
+  });
+
+  newQuestion();
+</script>
+</body>
+</html>
