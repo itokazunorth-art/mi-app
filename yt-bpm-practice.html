@@ -120,6 +120,44 @@
     text-align: center;
     padding: 12px 0;
   }
+  input[type="radio"] { width: auto; }
+  input[type="checkbox"] { width: auto; }
+  .radio-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.95rem;
+    color: #1d1d1f;
+    margin-top: 10px;
+  }
+  .loop-time {
+    font-size: 0.85rem;
+    color: #444;
+    margin-top: 6px;
+  }
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+    font-size: 0.95rem;
+  }
+  .metro-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 14px;
+  }
+  .beat-indicator {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #d5d5da;
+    transition: background 0.05s linear, transform 0.05s linear;
+    flex-shrink: 0;
+  }
+  .beat-indicator.beat { background: #0071e3; transform: scale(1.25); }
+  .beat-indicator.accent { background: #ff9500; transform: scale(1.4); }
 </style>
 </head>
 <body>
@@ -150,6 +188,36 @@
     <button id="applyRateBtn">速度に反映</button>
     <button id="resetRateBtn" class="secondary">等速(1.0x)に戻す</button>
     <div class="rate-info" id="rateInfo">動画を読み込んでBPMを入力してください。</div>
+  </div>
+
+  <div class="card">
+    <h2>区間ループ (A-Bリピート)</h2>
+    <div class="row">
+      <div>
+        <button id="setABtn" class="secondary">A地点を設定</button>
+        <div class="loop-time" id="loopADisplay">A: 未設定</div>
+      </div>
+      <div>
+        <button id="setBBtn" class="secondary">B地点を設定</button>
+        <div class="loop-time" id="loopBDisplay">B: 未設定</div>
+      </div>
+    </div>
+    <label class="checkbox-label"><input type="checkbox" id="loopEnabled"> ループ再生を有効にする</label>
+    <button id="clearLoopBtn" class="secondary">A/Bをクリア</button>
+  </div>
+
+  <div class="card">
+    <h2>練習用メトロノーム</h2>
+    <label class="radio-label"><input type="radio" name="metroMode" value="independent" checked> 独立モード(下のBPMで鳴らす)</label>
+    <label class="radio-label"><input type="radio" name="metroMode" value="sync"> 動画同期モード(再生速度に自動追従)</label>
+    <label for="metroBpm">BPM(独立モード時に使用)</label>
+    <input type="number" id="metroBpm" min="20" max="300" value="120">
+    <button id="tapTempoBtn" class="secondary">タップでBPM測定</button>
+    <div class="rate-info" id="metroSyncInfo"></div>
+    <div class="metro-controls">
+      <button id="metroToggleBtn">再生</button>
+      <div class="beat-indicator" id="beatIndicator"></div>
+    </div>
   </div>
 
   <div class="card">
@@ -218,6 +286,7 @@
   function onPlayerRateChange(event) {
     currentRate = event.data;
     renderRateInfo();
+    updateMetroSyncInfo();
   }
 
   function handleNewVideoIfReady() {
@@ -233,6 +302,8 @@
     player.setPlaybackRate(1);
     currentRate = player.getPlaybackRate();
     renderRateInfo();
+    resetLoopPoints();
+    updateMetroSyncInfo();
   }
 
   function closestRate(target) {
@@ -309,6 +380,165 @@
     currentRate = player.getPlaybackRate();
     renderRateInfo();
   });
+
+  // --- A-Bリピート(区間ループ) ---
+  let loopA = null;
+  let loopB = null;
+
+  function formatTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  function resetLoopPoints() {
+    loopA = null;
+    loopB = null;
+    document.getElementById('loopEnabled').checked = false;
+    document.getElementById('loopADisplay').textContent = 'A: 未設定';
+    document.getElementById('loopBDisplay').textContent = 'B: 未設定';
+  }
+
+  document.getElementById('setABtn').addEventListener('click', () => {
+    if (!playerReady) { alert('先に動画を読み込んでください。'); return; }
+    loopA = player.getCurrentTime();
+    document.getElementById('loopADisplay').textContent = `A: ${formatTime(loopA)}`;
+  });
+
+  document.getElementById('setBBtn').addEventListener('click', () => {
+    if (!playerReady) { alert('先に動画を読み込んでください。'); return; }
+    loopB = player.getCurrentTime();
+    document.getElementById('loopBDisplay').textContent = `B: ${formatTime(loopB)}`;
+  });
+
+  document.getElementById('clearLoopBtn').addEventListener('click', resetLoopPoints);
+
+  setInterval(() => {
+    if (!playerReady) return;
+    if (!document.getElementById('loopEnabled').checked) return;
+    if (loopB === null) return;
+    if (player.getPlayerState() !== YT.PlayerState.PLAYING) return;
+    if (player.getCurrentTime() >= loopB) {
+      player.seekTo(loopA || 0, true);
+    }
+  }, 200);
+
+  // --- 練習用メトロノーム ---
+  let audioCtx = null;
+  let metroTimerId = null;
+  let isMetroPlaying = false;
+  let nextNoteTime = 0;
+  let beatInBar = 0;
+  const BEATS_PER_BAR = 4;
+  const SCHEDULE_AHEAD_TIME = 0.1;
+  const LOOKAHEAD_MS = 25;
+  let tapTimestamps = [];
+
+  function getMetroMode() {
+    return document.querySelector('input[name="metroMode"]:checked').value;
+  }
+
+  function getSyncedBpm() {
+    const original = parseFloat(document.getElementById('originalBpm').value);
+    if (!original || !playerReady) return null;
+    return original * currentRate;
+  }
+
+  function getMetronomeBpm() {
+    if (getMetroMode() === 'sync') {
+      const synced = getSyncedBpm();
+      return synced || parseFloat(document.getElementById('metroBpm').value) || 120;
+    }
+    return parseFloat(document.getElementById('metroBpm').value) || 120;
+  }
+
+  function updateMetroSyncInfo() {
+    const el = document.getElementById('metroSyncInfo');
+    if (getMetroMode() === 'sync') {
+      const synced = getSyncedBpm();
+      el.innerHTML = synced
+        ? `<b>動画同期BPM: ${synced.toFixed(1)}</b>(原曲BPM × 現在の再生速度)`
+        : '原曲BPMを入力し、動画を読み込むと自動追従します。';
+    } else {
+      el.textContent = '';
+    }
+  }
+
+  document.querySelectorAll('input[name="metroMode"]').forEach(el => {
+    el.addEventListener('change', updateMetroSyncInfo);
+  });
+  document.getElementById('originalBpm').addEventListener('input', updateMetroSyncInfo);
+
+  function scheduleClick(beatNumber, time) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.frequency.value = beatNumber === 0 ? 1600 : 1000;
+    gain.gain.setValueAtTime(0.9, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(time);
+    osc.stop(time + 0.05);
+
+    const delayMs = Math.max(0, (time - audioCtx.currentTime) * 1000);
+    setTimeout(() => flashBeat(beatNumber === 0), delayMs);
+  }
+
+  function flashBeat(accent) {
+    const el = document.getElementById('beatIndicator');
+    el.className = 'beat-indicator ' + (accent ? 'accent' : 'beat');
+    setTimeout(() => { el.className = 'beat-indicator'; }, 100);
+  }
+
+  function metroScheduler() {
+    while (nextNoteTime < audioCtx.currentTime + SCHEDULE_AHEAD_TIME) {
+      scheduleClick(beatInBar, nextNoteTime);
+      const bpm = getMetronomeBpm();
+      nextNoteTime += 60.0 / bpm;
+      beatInBar = (beatInBar + 1) % BEATS_PER_BAR;
+    }
+    metroTimerId = setTimeout(metroScheduler, LOOKAHEAD_MS);
+  }
+
+  document.getElementById('metroToggleBtn').addEventListener('click', () => {
+    if (isMetroPlaying) {
+      isMetroPlaying = false;
+      clearTimeout(metroTimerId);
+      document.getElementById('metroToggleBtn').textContent = '再生';
+      return;
+    }
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    isMetroPlaying = true;
+    beatInBar = 0;
+    nextNoteTime = audioCtx.currentTime + 0.05;
+    metroScheduler();
+    document.getElementById('metroToggleBtn').textContent = '停止';
+  });
+
+  document.getElementById('tapTempoBtn').addEventListener('click', () => {
+    const now = performance.now();
+    if (tapTimestamps.length > 0 && now - tapTimestamps[tapTimestamps.length - 1] > 2000) {
+      tapTimestamps = [];
+    }
+    tapTimestamps.push(now);
+    if (tapTimestamps.length > 8) tapTimestamps.shift();
+    if (tapTimestamps.length >= 2) {
+      const intervals = [];
+      for (let i = 1; i < tapTimestamps.length; i++) {
+        intervals.push(tapTimestamps[i] - tapTimestamps[i - 1]);
+      }
+      const avgMs = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      const bpm = Math.round(60000 / avgMs);
+      document.getElementById('metroBpm').value = bpm;
+    }
+  });
+
+  updateMetroSyncInfo();
 
   function loadList() {
     try {
