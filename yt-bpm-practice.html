@@ -14,11 +14,83 @@
     background: #f5f5f7;
     color: #1d1d1f;
   }
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
   h1 {
     font-size: 1.4rem;
     text-align: center;
-    margin-bottom: 24px;
+    margin: 0;
+    flex: 1;
+    padding-right: 40px;
   }
+  .menu-btn {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: #1d1d1f;
+    color: #fff;
+    font-size: 1.2rem;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .menu-btn:hover { background: #333; }
+  .drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    z-index: 999;
+  }
+  .drawer-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(320px, 85vw);
+    height: 100vh;
+    background: #f5f5f7;
+    box-shadow: 2px 0 12px rgba(0,0,0,0.2);
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 1000;
+    overflow-y: auto;
+    padding: 20px 16px 40px;
+  }
+  .drawer.open {
+    transform: translateX(0);
+  }
+  .drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .drawer-header h2 { margin: 0; }
+  .icon-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: #1d1d1f;
+    padding: 4px 10px;
+    margin: 0;
+    cursor: pointer;
+    border-radius: 6px;
+  }
+  .icon-btn:hover { background: #e5e5ea; }
   h2 {
     font-size: 1.05rem;
     margin: 0 0 12px;
@@ -161,7 +233,19 @@
 </style>
 </head>
 <body>
-  <h1>YouTube BPM練習ツール</h1>
+  <div class="topbar">
+    <button id="menuToggleBtn" class="menu-btn" aria-label="マイリストを開く">&#9776;</button>
+    <h1>YouTube BPM練習ツール</h1>
+  </div>
+
+  <div id="drawerOverlay" class="drawer-overlay"></div>
+  <aside id="listDrawer" class="drawer">
+    <div class="drawer-header">
+      <h2>マイリスト</h2>
+      <button id="drawerCloseBtn" class="icon-btn" aria-label="閉じる">&times;</button>
+    </div>
+    <div id="list"></div>
+  </aside>
 
   <div class="card">
     <h2>動画読み込み</h2>
@@ -223,11 +307,11 @@
   </div>
 
   <div class="card">
-    <h2>練習ログ・マイリスト</h2>
+    <h2>練習ログを保存</h2>
     <label for="memo">練習メモ</label>
     <textarea id="memo" placeholder="例: ベースのゴーストノート注意、Tab譜動画URLなど"></textarea>
     <button id="saveBtn">この曲を保存</button>
-    <div id="list"></div>
+    <div class="empty-msg" style="padding:0;margin-top:10px;">保存済み一覧は左上の &#9776; メニューから確認できます。</div>
   </div>
 
 <script>
@@ -605,6 +689,24 @@
 
   updateMetroSyncInfo();
 
+  // --- マイリストのドロワー(左スライドパネル) ---
+  const listDrawer = document.getElementById('listDrawer');
+  const drawerOverlay = document.getElementById('drawerOverlay');
+
+  function openDrawer() {
+    listDrawer.classList.add('open');
+    drawerOverlay.classList.add('open');
+  }
+
+  function closeDrawer() {
+    listDrawer.classList.remove('open');
+    drawerOverlay.classList.remove('open');
+  }
+
+  document.getElementById('menuToggleBtn').addEventListener('click', openDrawer);
+  document.getElementById('drawerCloseBtn').addEventListener('click', closeDrawer);
+  drawerOverlay.addEventListener('click', closeDrawer);
+
   function loadList() {
     try {
       return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
@@ -644,6 +746,7 @@
         document.getElementById('targetBpm').value = item.lastBpm || '';
         document.getElementById('memo').value = item.memo || '';
         document.getElementById('loadBtn').click();
+        closeDrawer();
       });
       const delBtn = document.createElement('button');
       delBtn.className = 'danger';
