@@ -167,6 +167,8 @@
   let availableRates = [1];
   let currentVideoId = null;
   let titleFilledForVideoId = null;
+  let currentRate = 1;
+  let lastIdealRate;
 
   function extractVideoId(url) {
     const patterns = [
@@ -197,7 +199,8 @@
       videoId: currentVideoId,
       events: {
         onReady: onPlayerReady,
-        onStateChange: onPlayerStateChange
+        onStateChange: onPlayerStateChange,
+        onPlaybackRateChange: onPlayerRateChange
       }
     });
   }
@@ -212,6 +215,11 @@
     handleNewVideoIfReady();
   }
 
+  function onPlayerRateChange(event) {
+    currentRate = event.data;
+    renderRateInfo();
+  }
+
   function handleNewVideoIfReady() {
     if (!playerReady) return;
     const data = player.getVideoData();
@@ -221,8 +229,10 @@
     if (data.title) {
       document.getElementById('videoTitle').value = data.title;
     }
+    lastIdealRate = undefined;
     player.setPlaybackRate(1);
-    updateRateInfo();
+    currentRate = player.getPlaybackRate();
+    renderRateInfo();
   }
 
   function closestRate(target) {
@@ -231,18 +241,17 @@
     , availableRates[0]);
   }
 
-  function updateRateInfo(idealRate) {
+  function renderRateInfo() {
     const el = document.getElementById('rateInfo');
     if (!playerReady) {
       el.textContent = '動画を読み込んでBPMを入力してください。';
       return;
     }
-    const current = player.getPlaybackRate();
-    let text = `<b>現在の再生速度: ${current}x</b>`;
-    if (idealRate !== undefined) {
-      text += `<br>理想倍速(目標BPM ÷ 原曲BPM): ${idealRate.toFixed(3)}x`;
-      if (Math.abs(idealRate - current) > 0.001) {
-        text += `<br>※YouTubeが対応する速度の都合で近似値(${current}x)を適用しています。`;
+    let text = `<b>現在の再生速度: ${currentRate}x</b>`;
+    if (lastIdealRate !== undefined) {
+      text += `<br>理想倍速(目標BPM ÷ 原曲BPM): ${lastIdealRate.toFixed(3)}x`;
+      if (Math.abs(lastIdealRate - currentRate) > 0.001) {
+        text += `<br>※YouTubeが対応する速度の都合で近似値(${currentRate}x)を適用しています。`;
       }
     }
     el.innerHTML = text;
@@ -287,14 +296,18 @@
     }
     const idealRate = target / original;
     const rate = closestRate(idealRate);
+    lastIdealRate = idealRate;
     player.setPlaybackRate(rate);
-    updateRateInfo(idealRate);
+    currentRate = player.getPlaybackRate();
+    renderRateInfo();
   });
 
   document.getElementById('resetRateBtn').addEventListener('click', () => {
     if (!playerReady) return;
+    lastIdealRate = undefined;
     player.setPlaybackRate(1);
-    updateRateInfo();
+    currentRate = player.getPlaybackRate();
+    renderRateInfo();
   });
 
   function loadList() {
