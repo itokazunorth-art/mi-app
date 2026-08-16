@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YouTube BPM練習ツール</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+    max-width: 640px;
+    margin: 24px auto;
+    padding: 0 16px 60px;
+    background: #f5f5f7;
+    color: #1d1d1f;
+  }
+  h1 {
+    font-size: 1.4rem;
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  h2 {
+    font-size: 1.05rem;
+    margin: 0 0 12px;
+  }
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  label {
+    display: block;
+    font-size: 0.85rem;
+    color: #555;
+    margin: 10px 0 4px;
+  }
+  input[type="text"], input[type="number"], textarea {
+    width: 100%;
+    font-size: 1rem;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-family: inherit;
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  .row {
+    display: flex;
+    gap: 12px;
+  }
+  .row > div { flex: 1; }
+  button {
+    font-size: 0.95rem;
+    padding: 10px 16px;
+    margin-top: 12px;
+    margin-right: 8px;
+    border: none;
+    border-radius: 8px;
+    background: #0071e3;
+    color: #fff;
+    cursor: pointer;
+  }
+  button:hover { background: #0059b3; }
+  button.secondary {
+    background: #e5e5ea;
+    color: #1d1d1f;
+  }
+  button.secondary:hover { background: #d5d5da; }
+  button.danger {
+    background: #ffe5e5;
+    color: #d1242f;
+  }
+  button.danger:hover { background: #ffd0d0; }
+  .player-wrap {
+    position: relative;
+    width: 100%;
+    padding-top: 56.25%;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: 12px;
+  }
+  .player-wrap iframe, #player {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+  .rate-info {
+    margin-top: 12px;
+    font-size: 0.9rem;
+    color: #444;
+    line-height: 1.6;
+  }
+  .rate-info b { color: #0071e3; }
+  .list-item {
+    border: 1px solid #e5e5ea;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 10px;
+  }
+  .list-item .title {
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+  .list-item .meta {
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 4px;
+  }
+  .list-item .memo {
+    font-size: 0.85rem;
+    color: #333;
+    white-space: pre-wrap;
+    margin-bottom: 8px;
+  }
+  .empty-msg {
+    color: #888;
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 12px 0;
+  }
+</style>
+</head>
+<body>
+  <h1>YouTube BPM練習ツール</h1>
+
+  <div class="card">
+    <h2>動画読み込み</h2>
+    <label for="videoUrl">YouTube URL</label>
+    <input type="text" id="videoUrl" placeholder="https://www.youtube.com/watch?v=...">
+    <button id="loadBtn">読み込む</button>
+    <div class="player-wrap"><div id="player"></div></div>
+    <label for="videoTitle">動画タイトル(自動取得・編集可)</label>
+    <input type="text" id="videoTitle" placeholder="動画タイトル">
+  </div>
+
+  <div class="card">
+    <h2>BPM連動スピード制御</h2>
+    <div class="row">
+      <div>
+        <label for="originalBpm">原曲BPM</label>
+        <input type="number" id="originalBpm" min="1" placeholder="例: 135">
+      </div>
+      <div>
+        <label for="targetBpm">目標BPM</label>
+        <input type="number" id="targetBpm" min="1" placeholder="例: 108">
+      </div>
+    </div>
+    <button id="applyRateBtn">速度に反映</button>
+    <button id="resetRateBtn" class="secondary">等速(1.0x)に戻す</button>
+    <div class="rate-info" id="rateInfo">動画を読み込んでBPMを入力してください。</div>
+  </div>
+
+  <div class="card">
+    <h2>練習ログ・マイリスト</h2>
+    <label for="memo">練習メモ</label>
+    <textarea id="memo" placeholder="例: ベースのゴーストノート注意、Tab譜動画URLなど"></textarea>
+    <button id="saveBtn">この曲を保存</button>
+    <div id="list"></div>
+  </div>
+
+<script>
+  const STORAGE_KEY = 'ytBpmPracticeList';
+  let player = null;
+  let playerReady = false;
+  let availableRates = [1];
+  let currentVideoId = null;
+
+  function extractVideoId(url) {
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtube\.com\/embed\/|youtu\.be\/|youtube\.com\/shorts\/)([\w-]{11})/
+    ];
+    for (const re of patterns) {
+      const m = url.match(re);
+      if (m) return m[1];
+    }
+    return null;
+  }
+
+  function loadYouTubeApi() {
+    if (window.YT && window.YT.Player) {
+      createPlayer();
+      return;
+    }
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+    window.onYouTubeIframeAPIReady = createPlayer;
+  }
+
+  function createPlayer() {
+    player = new YT.Player('player', {
+      height: '100%',
+      width: '100%',
+      videoId: currentVideoId,
+      events: {
+        onReady: onPlayerReady
+      }
+    });
+  }
+
+  function onPlayerReady() {
+    playerReady = true;
+    availableRates = player.getAvailablePlaybackRates();
+    const data = player.getVideoData();
+    if (data && data.title) {
+      document.getElementById('videoTitle').value = data.title;
+    }
+    updateRateInfo();
+  }
+
+  function closestRate(target) {
+    return availableRates.reduce((best, r) =>
+      Math.abs(r - target) < Math.abs(best - target) ? r : best
+    , availableRates[0]);
+  }
+
+  function updateRateInfo(idealRate) {
+    const el = document.getElementById('rateInfo');
+    if (!playerReady) {
+      el.textContent = '動画を読み込んでBPMを入力してください。';
+      return;
+    }
+    const current = player.getPlaybackRate();
+    let text = `<b>現在の再生速度: ${current}x</b>`;
+    if (idealRate !== undefined) {
+      text += `<br>理想倍速(目標BPM ÷ 原曲BPM): ${idealRate.toFixed(3)}x`;
+      if (Math.abs(idealRate - current) > 0.001) {
+        text += `<br>※YouTubeが対応する速度の都合で近似値(${current}x)を適用しています。`;
+      }
+    }
+    el.innerHTML = text;
+  }
+
+  document.getElementById('loadBtn').addEventListener('click', () => {
+    const url = document.getElementById('videoUrl').value.trim();
+    const videoId = extractVideoId(url);
+    if (!videoId) {
+      alert('有効なYouTube URLを入力してください。');
+      return;
+    }
+    currentVideoId = videoId;
+    if (!window.YT || !window.YT.Player) {
+      loadYouTubeApi();
+    } else if (!player) {
+      createPlayer();
+    } else {
+      playerReady = false;
+      player.loadVideoById(videoId);
+    }
+  });
+
+  document.getElementById('applyRateBtn').addEventListener('click', () => {
+    if (!playerReady) {
+      alert('先に動画を読み込んでください。');
+      return;
+    }
+    const original = parseFloat(document.getElementById('originalBpm').value);
+    const target = parseFloat(document.getElementById('targetBpm').value);
+    if (!original || !target || original <= 0 || target <= 0) {
+      alert('原曲BPMと目標BPMを正しく入力してください。');
+      return;
+    }
+    const idealRate = target / original;
+    const rate = closestRate(idealRate);
+    player.setPlaybackRate(rate);
+    updateRateInfo(idealRate);
+  });
+
+  document.getElementById('resetRateBtn').addEventListener('click', () => {
+    if (!playerReady) return;
+    player.setPlaybackRate(1);
+    updateRateInfo();
+  });
+
+  function loadList() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveList(list) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  }
+
+  function renderList() {
+    const list = loadList();
+    const container = document.getElementById('list');
+    container.innerHTML = '';
+    if (list.length === 0) {
+      container.innerHTML = '<div class="empty-msg">保存された曲はまだありません。</div>';
+      return;
+    }
+    list.sort((a, b) => b.updatedAt - a.updatedAt);
+    list.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'list-item';
+      div.innerHTML = `
+        <div class="title">${escapeHtml(item.title || '(タイトル未設定)')}</div>
+        <div class="meta">原曲BPM: ${item.originalBpm ?? '-'} / 直近の練習BPM: ${item.lastBpm ?? '-'}</div>
+        ${item.memo ? `<div class="memo">${escapeHtml(item.memo)}</div>` : ''}
+      `;
+      const loadBtn = document.createElement('button');
+      loadBtn.className = 'secondary';
+      loadBtn.textContent = '読み込む';
+      loadBtn.addEventListener('click', () => {
+        document.getElementById('videoUrl').value = item.url;
+        document.getElementById('videoTitle').value = item.title || '';
+        document.getElementById('originalBpm').value = item.originalBpm || '';
+        document.getElementById('targetBpm').value = item.lastBpm || '';
+        document.getElementById('memo').value = item.memo || '';
+        document.getElementById('loadBtn').click();
+      });
+      const delBtn = document.createElement('button');
+      delBtn.className = 'danger';
+      delBtn.textContent = '削除';
+      delBtn.addEventListener('click', () => {
+        if (!confirm('この曲を削除しますか？')) return;
+        const updated = loadList().filter(i => i.videoId !== item.videoId);
+        saveList(updated);
+        renderList();
+      });
+      div.appendChild(loadBtn);
+      div.appendChild(delBtn);
+      container.appendChild(div);
+    });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', () => {
+    if (!currentVideoId) {
+      alert('先に動画を読み込んでください。');
+      return;
+    }
+    const url = document.getElementById('videoUrl').value.trim();
+    const title = document.getElementById('videoTitle').value.trim();
+    const originalBpm = document.getElementById('originalBpm').value;
+    const lastBpm = document.getElementById('targetBpm').value;
+    const memo = document.getElementById('memo').value;
+
+    const list = loadList();
+    const existingIndex = list.findIndex(i => i.videoId === currentVideoId);
+    const item = {
+      videoId: currentVideoId,
+      url,
+      title,
+      originalBpm: originalBpm ? Number(originalBpm) : null,
+      lastBpm: lastBpm ? Number(lastBpm) : null,
+      memo,
+      updatedAt: Date.now()
+    };
+    if (existingIndex >= 0) {
+      list[existingIndex] = item;
+    } else {
+      list.push(item);
+    }
+    saveList(list);
+    renderList();
+  });
+
+  renderList();
+</script>
+</body>
+</html>
