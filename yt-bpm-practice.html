@@ -509,8 +509,9 @@
     if (!playerReady) { alert('先に動画を読み込んでください。'); return; }
     const candidate = player.getCurrentTime();
     if (loopB !== null && loopB - candidate < MIN_LOOP_GAP) {
-      alert(`A地点はB地点より${MIN_LOOP_GAP}秒以上前にしてください。`);
-      return;
+      // 新しいA地点と矛盾するB地点は無効化し、後勝ちで設定し直せるようにする
+      loopB = null;
+      document.getElementById('loopBDisplay').textContent = 'B: 未設定';
     }
     loopA = candidate;
     document.getElementById('loopADisplay').textContent = `A: ${formatTime(loopA)}`;
@@ -520,8 +521,9 @@
     if (!playerReady) { alert('先に動画を読み込んでください。'); return; }
     const candidate = player.getCurrentTime();
     if (loopA !== null && candidate - loopA < MIN_LOOP_GAP) {
-      alert(`B地点はA地点より${MIN_LOOP_GAP}秒以上後にしてください。`);
-      return;
+      // 新しいB地点と矛盾するA地点は無効化し、後勝ちで設定し直せるようにする
+      loopA = null;
+      document.getElementById('loopADisplay').textContent = 'A: 未設定';
     }
     loopB = candidate;
     document.getElementById('loopBDisplay').textContent = `B: ${formatTime(loopB)}`;
