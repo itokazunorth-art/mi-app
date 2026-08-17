@@ -447,17 +447,19 @@
     document.getElementById('beatAnchorDisplay').textContent = '拍の基準: 未設定';
 
     if (suppressFieldReset) {
-      // マイリストからの読み込み: そのタイミングで曲自身の保存値が
-      // 既にセットされているので、ここでは上書きしない
+      // マイリストからの読み込み: そのタイミングで曲自身の保存値(編集済み
+      // タイトルを含む)が既にセットされているので、ここでは一切上書きしない
       suppressFieldReset = false;
-      if (data.title) {
-        document.getElementById('videoTitle').value = data.title;
-      }
     } else {
       // 手動でURLを入力しての読み込み: 前の曲の設定を引き継がない。
-      // タイトルもYouTube取得値があれば使い、無ければ空にする(前の
-      // 動画のタイトルが残ったままにならないように)。
-      document.getElementById('videoTitle').value = data.title || '';
+      // タイトルはYouTube取得値を使うが、この時点ではまだ取得できて
+      // いないことがあるので、取れるまで少し待って再取得する。
+      if (data.title) {
+        document.getElementById('videoTitle').value = data.title;
+      } else {
+        document.getElementById('videoTitle').value = '';
+        pollForVideoTitle(currentVideoId, 6);
+      }
       document.getElementById('originalBpm').value = '';
       document.getElementById('targetBpm').value = '';
       document.getElementById('memo').value = '';
@@ -465,6 +467,16 @@
     }
 
     updateMetroSyncInfo();
+  }
+
+  function pollForVideoTitle(videoId, attemptsLeft) {
+    if (attemptsLeft <= 0 || currentVideoId !== videoId || !player) return;
+    const data = player.getVideoData();
+    if (data && data.video_id === videoId && data.title) {
+      document.getElementById('videoTitle').value = data.title;
+    } else {
+      setTimeout(() => pollForVideoTitle(videoId, attemptsLeft - 1), 400);
+    }
   }
 
   function closestRate(target) {
