@@ -374,6 +374,7 @@
   let titleFilledForVideoId = null;
   let currentRate = 1;
   let lastIdealRate;
+  let suppressFieldReset = false;
 
   function extractVideoId(url) {
     const patterns = [
@@ -447,6 +448,19 @@
     syncAnchorContentTime = null;
     lastValidOriginalBpm = null;
     document.getElementById('beatAnchorDisplay').textContent = '拍の基準: 未設定';
+
+    if (suppressFieldReset) {
+      // マイリストからの読み込み: そのタイミングで曲自身の保存値が
+      // 既にセットされているので、ここでは上書きしない
+      suppressFieldReset = false;
+    } else {
+      // 手動でURLを入力しての読み込み: 前の曲の設定を引き継がない
+      document.getElementById('originalBpm').value = '';
+      document.getElementById('targetBpm').value = '';
+      document.getElementById('memo').value = '';
+      document.getElementById('metroBpm').value = 120;
+    }
+
     updateMetroSyncInfo();
   }
 
@@ -800,6 +814,7 @@
       loadBtn.className = 'secondary';
       loadBtn.textContent = '読み込む';
       loadBtn.addEventListener('click', () => {
+        suppressFieldReset = true;
         document.getElementById('videoUrl').value = item.url;
         document.getElementById('videoTitle').value = item.title || '';
         document.getElementById('originalBpm').value = item.originalBpm || '';
