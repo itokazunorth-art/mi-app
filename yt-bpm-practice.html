@@ -869,11 +869,24 @@
   const videoController = document.getElementById('videoController');
   let scrollHideTimer = null;
 
+  // Androidのアドレスバーが再表示される際、実際に見えている範囲(visual viewport)と
+  // レイアウト上の基準がズレて、position:fixedの要素が画面端で見切れることがある。
+  // visualViewport APIで実際の可視範囲を都度計算し、その基準で位置を合わせ直す。
+  function positionVideoController() {
+    if (!window.visualViewport) return;
+    const vv = window.visualViewport;
+    const visibleBottom = vv.offsetTop + vv.height;
+    const margin = 20;
+    videoController.style.bottom = 'auto';
+    videoController.style.top = `${visibleBottom - videoController.offsetHeight - margin}px`;
+  }
+
   function hideVideoController() {
     videoController.classList.add('hidden');
   }
 
   function showVideoController() {
+    positionVideoController();
     videoController.classList.remove('hidden');
   }
 
@@ -882,6 +895,11 @@
     clearTimeout(scrollHideTimer);
     scrollHideTimer = setTimeout(showVideoController, 300);
   }, { passive: true });
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', positionVideoController);
+  }
+  positionVideoController();
 
   function updatePlayPauseIcon() {
     if (!playerReady) return;
