@@ -876,7 +876,7 @@
     if (!window.visualViewport) return;
     const vv = window.visualViewport;
     const visibleBottom = vv.offsetTop + vv.height;
-    const margin = 20;
+    const margin = 8;
     videoController.style.bottom = 'auto';
     videoController.style.top = `${visibleBottom - videoController.offsetHeight - margin}px`;
   }
