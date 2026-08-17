@@ -437,9 +437,6 @@
     if (!data || data.video_id !== currentVideoId) return;
     if (titleFilledForVideoId === currentVideoId) return;
     titleFilledForVideoId = currentVideoId;
-    if (data.title) {
-      document.getElementById('videoTitle').value = data.title;
-    }
     lastIdealRate = undefined;
     player.setPlaybackRate(1);
     currentRate = player.getPlaybackRate();
@@ -453,8 +450,14 @@
       // マイリストからの読み込み: そのタイミングで曲自身の保存値が
       // 既にセットされているので、ここでは上書きしない
       suppressFieldReset = false;
+      if (data.title) {
+        document.getElementById('videoTitle').value = data.title;
+      }
     } else {
-      // 手動でURLを入力しての読み込み: 前の曲の設定を引き継がない
+      // 手動でURLを入力しての読み込み: 前の曲の設定を引き継がない。
+      // タイトルもYouTube取得値があれば使い、無ければ空にする(前の
+      // 動画のタイトルが残ったままにならないように)。
+      document.getElementById('videoTitle').value = data.title || '';
       document.getElementById('originalBpm').value = '';
       document.getElementById('targetBpm').value = '';
       document.getElementById('memo').value = '';
