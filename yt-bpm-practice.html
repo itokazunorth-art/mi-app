@@ -899,6 +899,19 @@
   const videoController = document.getElementById('videoController');
   let scrollHideTimer = null;
 
+  // ブラウザのアドレスバーやAndroidのジェスチャーナビバーが表示/非表示に
+  // なると、実際に見えている範囲(visualViewport)が変わる。ボタンが画面端に
+  // 隠れないよう、ブラウザ自身がその変化を通知するタイミングで都度位置を
+  // 合わせ直す(自前のタイマーには依存しない)。
+  function positionVideoController() {
+    if (!window.visualViewport) return;
+    const vv = window.visualViewport;
+    const visibleBottom = vv.offsetTop + vv.height;
+    const margin = 8;
+    videoController.style.bottom = 'auto';
+    videoController.style.top = `${visibleBottom - videoController.offsetHeight - margin}px`;
+  }
+
   function hideVideoController() {
     videoController.classList.add('hidden');
   }
@@ -912,6 +925,12 @@
     clearTimeout(scrollHideTimer);
     scrollHideTimer = setTimeout(showVideoController, 300);
   }, { passive: true });
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', positionVideoController);
+    window.visualViewport.addEventListener('scroll', positionVideoController);
+  }
+  positionVideoController();
 
   function updatePlayPauseIcon() {
     if (!playerReady) return;
