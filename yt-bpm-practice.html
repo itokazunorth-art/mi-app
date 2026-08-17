@@ -144,13 +144,9 @@
   }
   .video-controller {
     position: fixed;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
     left: 0;
     right: 0;
-    /* bottom はlvh非対応ブラウザ向けのフォールバック。lvhが使えるブラウザ
-       では下のtopが優先され、ツールバー表示/非表示にかかわらず常に同じ
-       絶対位置になる(自身の高さは実測56px)。 */
-    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
-    top: calc(100lvh - 56px - 56px - env(safe-area-inset-bottom, 0px));
     z-index: 600;
     display: flex;
     justify-content: center;
