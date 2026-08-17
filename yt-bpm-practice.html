@@ -15,16 +15,22 @@
     color: #1d1d1f;
   }
   .topbar {
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
     z-index: 500;
     display: flex;
     align-items: center;
     gap: 12px;
+    max-width: 640px;
+    margin: 0 auto;
     background: #f5f5f7;
-    margin: 0 -16px 24px;
     padding: 16px 16px 12px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  }
+  .topbar-spacer {
+    margin-bottom: 24px;
   }
   h1 {
     font-size: 1.4rem;
@@ -239,10 +245,11 @@
 </style>
 </head>
 <body>
-  <div class="topbar">
+  <div class="topbar" id="topbar">
     <button id="menuToggleBtn" class="menu-btn" aria-label="マイリストを開く">&#9776;</button>
     <h1>YouTube BPM練習ツール</h1>
   </div>
+  <div class="topbar-spacer" id="topbarSpacer"></div>
 
   <div id="drawerOverlay" class="drawer-overlay"></div>
   <aside id="listDrawer" class="drawer">
@@ -692,6 +699,14 @@
   });
 
   updateMetroSyncInfo();
+
+  // 固定ヘッダーの実高さ分だけ、後続コンテンツを押し下げる
+  function syncTopbarSpacerHeight() {
+    document.getElementById('topbarSpacer').style.height =
+      document.getElementById('topbar').offsetHeight + 'px';
+  }
+  syncTopbarSpacerHeight();
+  window.addEventListener('resize', syncTopbarSpacerHeight);
 
   // --- マイリストのドロワー(左スライドパネル) ---
   const listDrawer = document.getElementById('listDrawer');
