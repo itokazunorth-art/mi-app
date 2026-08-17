@@ -103,6 +103,45 @@
     border-radius: 6px;
   }
   .icon-btn:hover { background: #e5e5ea; }
+  .icon-btn.small { font-size: 1.1rem; padding: 4px 8px; }
+  .drawer-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .drawer-toolbar select {
+    flex: 1;
+    width: auto;
+  }
+  .drawer-toolbar button {
+    margin: 0;
+    white-space: nowrap;
+  }
+  .folder-section {
+    margin-bottom: 18px;
+  }
+  .folder-header {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .folder-toggle {
+    flex: 1;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 6px 0;
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: #1d1d1f;
+    cursor: pointer;
+  }
+  .item-folder-select {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    padding: 6px 8px;
+  }
   .video-controller {
     position: fixed;
     bottom: calc(8px + env(safe-area-inset-bottom, 0px));
@@ -152,13 +191,14 @@
     color: #555;
     margin: 10px 0 4px;
   }
-  input[type="text"], input[type="number"], textarea {
+  input[type="text"], input[type="number"], textarea, select {
     width: 100%;
     font-size: 1rem;
     padding: 8px 10px;
     border: 1px solid #ccc;
     border-radius: 8px;
     font-family: inherit;
+    background: #fff;
   }
   textarea { resize: vertical; min-height: 60px; }
   .row {
@@ -289,6 +329,14 @@
       <h2>マイリスト</h2>
       <button id="drawerCloseBtn" class="icon-btn" aria-label="閉じる">&times;</button>
     </div>
+    <div class="drawer-toolbar">
+      <select id="sortSelect">
+        <option value="updated_desc">追加順(新しい順)</option>
+        <option value="updated_asc">追加順(古い順)</option>
+        <option value="title_asc">タイトル順</option>
+      </select>
+      <button id="newFolderBtn" class="secondary">＋ フォルダ作成</button>
+    </div>
     <div id="list"></div>
   </aside>
 
@@ -353,6 +401,8 @@
 
   <div class="card">
     <h2>練習ログを保存</h2>
+    <label for="folderSelect">フォルダ(セットリスト)</label>
+    <select id="folderSelect"></select>
     <label for="memo">練習メモ</label>
     <textarea id="memo" placeholder="例: ベースのゴーストノート注意、Tab譜動画URLなど"></textarea>
     <button id="saveBtn">この曲を保存</button>
@@ -464,6 +514,7 @@
       document.getElementById('targetBpm').value = '';
       document.getElementById('memo').value = '';
       document.getElementById('metroBpm').value = 120;
+      document.getElementById('folderSelect').value = '';
     }
 
     updateMetroSyncInfo();
@@ -796,6 +847,10 @@
   document.getElementById('drawerCloseBtn').addEventListener('click', closeDrawer);
   drawerOverlay.addEventListener('click', closeDrawer);
 
+  const FOLDERS_KEY = 'ytBpmFolders';
+  const SORT_KEY = 'ytBpmSortOrder';
+  const collapsedFolders = new Set();
+
   function loadList() {
     try {
       return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
@@ -808,58 +863,237 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   }
 
-  function renderList() {
-    const list = loadList();
-    const container = document.getElementById('list');
-    container.innerHTML = '';
-    if (list.length === 0) {
-      container.innerHTML = '<div class="empty-msg">保存された曲はまだありません。</div>';
-      return;
+  function loadFolders() {
+    try {
+      return JSON.parse(localStorage.getItem(FOLDERS_KEY)) || [];
+    } catch {
+      return [];
     }
-    list.sort((a, b) => b.updatedAt - a.updatedAt);
-    list.forEach(item => {
-      const div = document.createElement('div');
-      div.className = 'list-item';
-      div.innerHTML = `
-        <div class="title">${escapeHtml(item.title || '(タイトル未設定)')}</div>
-        <div class="meta">原曲BPM: ${item.originalBpm ?? '-'} / 直近の練習BPM: ${item.lastBpm ?? '-'}</div>
-        ${item.memo ? `<div class="memo">${escapeHtml(item.memo)}</div>` : ''}
-      `;
-      const loadBtn = document.createElement('button');
-      loadBtn.className = 'secondary';
-      loadBtn.textContent = '読み込む';
-      loadBtn.addEventListener('click', () => {
-        suppressFieldReset = true;
-        document.getElementById('videoUrl').value = item.url;
-        document.getElementById('videoTitle').value = item.title || '';
-        document.getElementById('originalBpm').value = item.originalBpm || '';
-        document.getElementById('targetBpm').value = item.lastBpm || '';
-        document.getElementById('memo').value = item.memo || '';
-        if (item.originalBpm) {
-          document.getElementById('metroBpm').value = item.originalBpm;
-        }
-        document.getElementById('loadBtn').click();
-        closeDrawer();
-      });
-      const delBtn = document.createElement('button');
-      delBtn.className = 'danger';
-      delBtn.textContent = '削除';
-      delBtn.addEventListener('click', () => {
-        if (!confirm('この曲を削除しますか？')) return;
-        const updated = loadList().filter(i => i.videoId !== item.videoId);
-        saveList(updated);
-        renderList();
-      });
-      div.appendChild(loadBtn);
-      div.appendChild(delBtn);
-      container.appendChild(div);
-    });
+  }
+
+  function saveFolders(folders) {
+    localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders));
+  }
+
+  function makeFolderId() {
+    return window.crypto && crypto.randomUUID
+      ? crypto.randomUUID()
+      : 'f_' + Date.now() + '_' + Math.random().toString(36).slice(2);
   }
 
   function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+  }
+
+  function buildFolderOptionsHtml(selectedId) {
+    const folders = loadFolders();
+    let html = `<option value=""${!selectedId ? ' selected' : ''}>未分類</option>`;
+    folders.forEach(f => {
+      html += `<option value="${f.id}"${selectedId === f.id ? ' selected' : ''}>${escapeHtml(f.name)}</option>`;
+    });
+    return html;
+  }
+
+  function refreshFolderSelectOptions(selectedId) {
+    const sel = document.getElementById('folderSelect');
+    const current = selectedId !== undefined ? selectedId : sel.value;
+    sel.innerHTML = buildFolderOptionsHtml(current) + '<option value="__new__">＋ 新しいフォルダを作成</option>';
+    sel.value = current || '';
+  }
+
+  document.getElementById('folderSelect').addEventListener('change', function () {
+    if (this.value !== '__new__') return;
+    const name = prompt('新しいフォルダ(セットリスト)名を入力してください');
+    if (name && name.trim()) {
+      const folders = loadFolders();
+      const id = makeFolderId();
+      folders.push({ id, name: name.trim() });
+      saveFolders(folders);
+      refreshFolderSelectOptions(id);
+      renderList();
+    } else {
+      refreshFolderSelectOptions('');
+    }
+  });
+
+  document.getElementById('newFolderBtn').addEventListener('click', () => {
+    const name = prompt('新しいフォルダ(セットリスト)名を入力してください');
+    if (!name || !name.trim()) return;
+    const folders = loadFolders();
+    folders.push({ id: makeFolderId(), name: name.trim() });
+    saveFolders(folders);
+    renderList();
+  });
+
+  document.getElementById('sortSelect').addEventListener('change', function () {
+    localStorage.setItem(SORT_KEY, this.value);
+    renderList();
+  });
+
+  function sortItems(list, order) {
+    const copy = [...list];
+    if (order === 'updated_asc') {
+      copy.sort((a, b) => a.updatedAt - b.updatedAt);
+    } else if (order === 'title_asc') {
+      copy.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ja'));
+    } else {
+      copy.sort((a, b) => b.updatedAt - a.updatedAt);
+    }
+    return copy;
+  }
+
+  function renderListItem(item) {
+    const div = document.createElement('div');
+    div.className = 'list-item';
+    div.innerHTML = `
+      <div class="title">${escapeHtml(item.title || '(タイトル未設定)')}</div>
+      <div class="meta">原曲BPM: ${item.originalBpm ?? '-'} / 直近の練習BPM: ${item.lastBpm ?? '-'}</div>
+      ${item.memo ? `<div class="memo">${escapeHtml(item.memo)}</div>` : ''}
+    `;
+
+    const folderMoveSelect = document.createElement('select');
+    folderMoveSelect.className = 'item-folder-select';
+    folderMoveSelect.setAttribute('aria-label', 'フォルダを移動');
+    folderMoveSelect.innerHTML = buildFolderOptionsHtml(item.folderId || '');
+    folderMoveSelect.addEventListener('change', () => {
+      const list = loadList();
+      const target = list.find(i => i.videoId === item.videoId);
+      if (target) {
+        target.folderId = folderMoveSelect.value || null;
+        saveList(list);
+        renderList();
+      }
+    });
+    div.appendChild(folderMoveSelect);
+
+    const loadBtn = document.createElement('button');
+    loadBtn.className = 'secondary';
+    loadBtn.textContent = '読み込む';
+    loadBtn.addEventListener('click', () => {
+      suppressFieldReset = true;
+      document.getElementById('videoUrl').value = item.url;
+      document.getElementById('videoTitle').value = item.title || '';
+      document.getElementById('originalBpm').value = item.originalBpm || '';
+      document.getElementById('targetBpm').value = item.lastBpm || '';
+      document.getElementById('memo').value = item.memo || '';
+      refreshFolderSelectOptions(item.folderId || '');
+      if (item.originalBpm) {
+        document.getElementById('metroBpm').value = item.originalBpm;
+      }
+      document.getElementById('loadBtn').click();
+      closeDrawer();
+    });
+    const delBtn = document.createElement('button');
+    delBtn.className = 'danger';
+    delBtn.textContent = '削除';
+    delBtn.addEventListener('click', () => {
+      if (!confirm('この曲を削除しますか？')) return;
+      const updated = loadList().filter(i => i.videoId !== item.videoId);
+      saveList(updated);
+      renderList();
+    });
+    div.appendChild(loadBtn);
+    div.appendChild(delBtn);
+    return div;
+  }
+
+  function renderFolderSection(folder, items) {
+    const isUnclassified = folder === null;
+    const folderKey = isUnclassified ? '__none__' : folder.id;
+    const collapsed = collapsedFolders.has(folderKey);
+
+    const section = document.createElement('div');
+    section.className = 'folder-section';
+
+    const header = document.createElement('div');
+    header.className = 'folder-header';
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'folder-toggle';
+    toggleBtn.textContent = `${collapsed ? '▶' : '▼'} ${isUnclassified ? '未分類' : folder.name} (${items.length})`;
+    toggleBtn.addEventListener('click', () => {
+      if (collapsedFolders.has(folderKey)) collapsedFolders.delete(folderKey);
+      else collapsedFolders.add(folderKey);
+      renderList();
+    });
+    header.appendChild(toggleBtn);
+
+    if (!isUnclassified) {
+      const renameBtn = document.createElement('button');
+      renameBtn.className = 'icon-btn small';
+      renameBtn.textContent = '✎';
+      renameBtn.setAttribute('aria-label', 'フォルダ名を変更');
+      renameBtn.addEventListener('click', () => {
+        const newName = prompt('フォルダ名を変更', folder.name);
+        if (!newName || !newName.trim()) return;
+        const folders = loadFolders();
+        const f = folders.find(x => x.id === folder.id);
+        if (f) {
+          f.name = newName.trim();
+          saveFolders(folders);
+          renderList();
+        }
+      });
+      const delFolderBtn = document.createElement('button');
+      delFolderBtn.className = 'icon-btn small';
+      delFolderBtn.textContent = '🗑';
+      delFolderBtn.setAttribute('aria-label', 'フォルダを削除');
+      delFolderBtn.addEventListener('click', () => {
+        if (!confirm(`「${folder.name}」を削除しますか？(中の曲は未分類に移動します)`)) return;
+        saveFolders(loadFolders().filter(f => f.id !== folder.id));
+        const list = loadList().map(i => (i.folderId === folder.id ? { ...i, folderId: null } : i));
+        saveList(list);
+        renderList();
+      });
+      header.appendChild(renameBtn);
+      header.appendChild(delFolderBtn);
+    }
+
+    section.appendChild(header);
+
+    if (!collapsed) {
+      if (items.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-msg';
+        empty.textContent = '曲がありません。';
+        section.appendChild(empty);
+      } else {
+        items.forEach(item => section.appendChild(renderListItem(item)));
+      }
+    }
+    return section;
+  }
+
+  function renderList() {
+    const list = loadList();
+    const folders = loadFolders();
+    const container = document.getElementById('list');
+    container.innerHTML = '';
+    if (list.length === 0 && folders.length === 0) {
+      container.innerHTML = '<div class="empty-msg">保存された曲はまだありません。</div>';
+      return;
+    }
+
+    const sortOrder = document.getElementById('sortSelect').value;
+    const sorted = sortItems(list, sortOrder);
+
+    const byFolder = new Map();
+    sorted.forEach(item => {
+      const key = item.folderId || '__none__';
+      if (!byFolder.has(key)) byFolder.set(key, []);
+      byFolder.get(key).push(item);
+    });
+
+    folders.forEach(folder => {
+      container.appendChild(renderFolderSection(folder, byFolder.get(folder.id) || []));
+    });
+
+    const unclassified = byFolder.get('__none__') || [];
+    if (unclassified.length > 0 || folders.length === 0) {
+      container.appendChild(renderFolderSection(null, unclassified));
+    }
   }
 
   document.getElementById('saveBtn').addEventListener('click', () => {
@@ -872,6 +1106,7 @@
     const originalBpm = document.getElementById('originalBpm').value;
     const lastBpm = document.getElementById('targetBpm').value;
     const memo = document.getElementById('memo').value;
+    const folderId = document.getElementById('folderSelect').value || null;
 
     const list = loadList();
     const existingIndex = list.findIndex(i => i.videoId === currentVideoId);
@@ -882,6 +1117,7 @@
       originalBpm: originalBpm ? Number(originalBpm) : null,
       lastBpm: lastBpm ? Number(lastBpm) : null,
       memo,
+      folderId,
       updatedAt: Date.now()
     };
     if (existingIndex >= 0) {
@@ -893,6 +1129,11 @@
     renderList();
   });
 
+  const savedSortOrder = localStorage.getItem(SORT_KEY);
+  if (savedSortOrder) {
+    document.getElementById('sortSelect').value = savedSortOrder;
+  }
+  refreshFolderSelectOptions('');
   renderList();
 
   // --- 画面下部の動画コントローラー ---
