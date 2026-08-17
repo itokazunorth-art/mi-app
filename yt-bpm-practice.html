@@ -766,6 +766,9 @@
         document.getElementById('originalBpm').value = item.originalBpm || '';
         document.getElementById('targetBpm').value = item.lastBpm || '';
         document.getElementById('memo').value = item.memo || '';
+        if (item.originalBpm) {
+          document.getElementById('metroBpm').value = item.originalBpm;
+        }
         document.getElementById('loadBtn').click();
         closeDrawer();
       });
