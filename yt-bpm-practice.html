@@ -311,7 +311,7 @@
     <input type="number" id="metroBpm" min="20" max="300" value="120">
     <button id="tapTempoBtn" class="secondary">タップでBPM測定</button>
     <div class="rate-info" id="metroSyncInfo"></div>
-    <button id="setBeatAnchorBtn" class="secondary">現在位置を拍の頭に同期</button>
+    <button id="setBeatAnchorBtn" class="secondary">曲に合わせて拍1をタップ</button>
     <div class="loop-time" id="beatAnchorDisplay">拍の基準: 未設定</div>
     <div class="metro-controls">
       <button id="metroToggleBtn">再生</button>
@@ -589,7 +589,7 @@
       if (!synced) {
         el.innerHTML = '原曲BPMを入力し、動画を読み込むと自動追従します。';
       } else if (syncAnchorContentTime === null) {
-        el.innerHTML = `<b>動画同期BPM: ${synced.toFixed(1)}</b>(原曲BPM × 現在の再生速度)<br>※タイミングを曲に合わせるには、曲の拍の頭で「現在位置を拍の頭に同期」を押してください。`;
+        el.innerHTML = `<b>動画同期BPM: ${synced.toFixed(1)}</b>(原曲BPM × 現在の再生速度)<br>※クリックの頭は自動検出されません。曲の拍に合わせて「曲に合わせて拍1をタップ」を押したタイミングが基準になります。`;
       } else {
         el.innerHTML = `<b>動画同期BPM: ${synced.toFixed(1)}</b>(原曲BPM × 現在の再生速度)`;
       }
