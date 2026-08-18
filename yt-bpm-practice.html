@@ -871,7 +871,21 @@
 
   const FOLDERS_KEY = 'ytBpmFolders';
   const SORT_KEY = 'ytBpmSortOrder';
-  const collapsedFolders = new Set();
+  const COLLAPSED_FOLDERS_KEY = 'ytBpmCollapsedFolders';
+
+  function loadCollapsedFolders() {
+    try {
+      return new Set(JSON.parse(localStorage.getItem(COLLAPSED_FOLDERS_KEY)) || []);
+    } catch {
+      return new Set();
+    }
+  }
+
+  function saveCollapsedFolders() {
+    localStorage.setItem(COLLAPSED_FOLDERS_KEY, JSON.stringify([...collapsedFolders]));
+  }
+
+  const collapsedFolders = loadCollapsedFolders();
 
   function loadList() {
     try {
@@ -1038,6 +1052,7 @@
     toggleBtn.addEventListener('click', () => {
       if (collapsedFolders.has(folderKey)) collapsedFolders.delete(folderKey);
       else collapsedFolders.add(folderKey);
+      saveCollapsedFolders();
       renderList();
     });
     header.appendChild(toggleBtn);
