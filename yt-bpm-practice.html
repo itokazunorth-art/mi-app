@@ -342,19 +342,14 @@
     <div id="list"></div>
   </aside>
 
-  <div class="card" data-panel="video">
-    <div class="card-header">
-      <h2>動画読み込み</h2>
-      <button class="panel-toggle" aria-label="開閉">▼</button>
-    </div>
-    <div class="card-body">
-      <label for="videoUrl">YouTube URL</label>
-      <input type="text" id="videoUrl" placeholder="https://www.youtube.com/watch?v=...">
-      <button id="loadBtn">読み込む</button>
-      <div class="player-wrap"><div id="player"></div></div>
-      <label for="videoTitle">動画タイトル(自動取得・編集可)</label>
-      <input type="text" id="videoTitle" placeholder="動画タイトル">
-    </div>
+  <div class="card">
+    <h2>動画読み込み</h2>
+    <label for="videoUrl">YouTube URL</label>
+    <input type="text" id="videoUrl" placeholder="https://www.youtube.com/watch?v=...">
+    <button id="loadBtn">読み込む</button>
+    <div class="player-wrap"><div id="player"></div></div>
+    <label for="videoTitle">動画タイトル(自動取得・編集可)</label>
+    <input type="text" id="videoTitle" placeholder="動画タイトル">
   </div>
 
   <div class="card video-control-row">
@@ -1193,7 +1188,7 @@
 
   // --- パネルの開閉 ---
   const PANEL_STATE_KEY = 'ytBpmPanelState';
-  const defaultOpenPanels = { video: true, speed: false, loop: false, metro: false, save: false };
+  const defaultOpenPanels = { speed: false, loop: false, metro: false, save: false };
 
   function loadPanelState() {
     try {
