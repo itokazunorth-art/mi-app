@@ -1187,30 +1187,11 @@
   });
 
   // --- パネルの開閉 ---
-  const PANEL_STATE_KEY = 'ytBpmPanelState';
-  const defaultOpenPanels = { speed: false, loop: false, metro: false, save: false };
-
-  function loadPanelState() {
-    try {
-      return { ...defaultOpenPanels, ...JSON.parse(localStorage.getItem(PANEL_STATE_KEY)) };
-    } catch {
-      return { ...defaultOpenPanels };
-    }
-  }
-
-  function savePanelState(state) {
-    localStorage.setItem(PANEL_STATE_KEY, JSON.stringify(state));
-  }
-
-  const panelState = loadPanelState();
+  // 開閉状態は保存しない: リロードするたびに必ず初期状態(全て閉じた状態)に戻す
   document.querySelectorAll('.card[data-panel]').forEach(card => {
-    const key = card.dataset.panel;
-    const isOpen = panelState[key] !== undefined ? panelState[key] : true;
-    card.classList.toggle('collapsed', !isOpen);
+    card.classList.add('collapsed');
     card.querySelector('.panel-toggle').addEventListener('click', () => {
-      const collapsed = card.classList.toggle('collapsed');
-      panelState[key] = !collapsed;
-      savePanelState(panelState);
+      card.classList.toggle('collapsed');
     });
   });
 </script>
