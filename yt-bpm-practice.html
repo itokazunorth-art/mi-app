@@ -185,6 +185,31 @@
     margin-bottom: 20px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   }
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .card-header h2 { margin: 0; }
+  .card.collapsed .card-header { margin-bottom: 0; }
+  .card:not(.collapsed) .card-header { margin-bottom: 12px; }
+  .card.collapsed .card-body { display: none; }
+  .panel-toggle {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    line-height: 1;
+    color: #666;
+    padding: 4px 8px;
+    margin: 0;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: transform 0.15s ease;
+  }
+  .panel-toggle:hover { background: #e5e5ea; }
+  .card.collapsed .panel-toggle { transform: rotate(-90deg); }
   label {
     display: block;
     font-size: 0.85rem;
@@ -340,73 +365,98 @@
     <div id="list"></div>
   </aside>
 
-  <div class="card">
-    <h2>動画読み込み</h2>
-    <label for="videoUrl">YouTube URL</label>
-    <input type="text" id="videoUrl" placeholder="https://www.youtube.com/watch?v=...">
-    <button id="loadBtn">読み込む</button>
-    <div class="player-wrap"><div id="player"></div></div>
-    <label for="videoTitle">動画タイトル(自動取得・編集可)</label>
-    <input type="text" id="videoTitle" placeholder="動画タイトル">
-  </div>
-
-  <div class="card">
-    <h2>BPM連動スピード制御</h2>
-    <div class="row">
-      <div>
-        <label for="originalBpm">原曲BPM</label>
-        <input type="number" id="originalBpm" min="1" placeholder="例: 135">
-      </div>
-      <div>
-        <label for="targetBpm">目標BPM</label>
-        <input type="number" id="targetBpm" min="1" placeholder="例: 108">
-      </div>
+  <div class="card" data-panel="video">
+    <div class="card-header">
+      <h2>動画読み込み</h2>
+      <button class="panel-toggle" aria-label="開閉">▼</button>
     </div>
-    <button id="applyRateBtn">速度に反映</button>
-    <button id="resetRateBtn" class="secondary">等速(1.0x)に戻す</button>
-    <div class="rate-info" id="rateInfo">動画を読み込んでBPMを入力してください。</div>
-  </div>
-
-  <div class="card">
-    <h2>区間ループ (A-Bリピート)</h2>
-    <div class="row">
-      <div>
-        <button id="setABtn" class="secondary">A地点を設定</button>
-        <div class="loop-time" id="loopADisplay">A: 未設定</div>
-      </div>
-      <div>
-        <button id="setBBtn" class="secondary">B地点を設定</button>
-        <div class="loop-time" id="loopBDisplay">B: 未設定</div>
-      </div>
-    </div>
-    <label class="checkbox-label"><input type="checkbox" id="loopEnabled"> ループ再生を有効にする</label>
-    <button id="clearLoopBtn" class="secondary">A/Bをクリア</button>
-  </div>
-
-  <div class="card">
-    <h2>練習用メトロノーム</h2>
-    <label class="radio-label"><input type="radio" name="metroMode" value="independent" checked> 独立モード(下のBPMで鳴らす)</label>
-    <label class="radio-label"><input type="radio" name="metroMode" value="sync"> 動画同期モード(再生速度に自動追従)</label>
-    <label for="metroBpm">BPM(独立モード時に使用)</label>
-    <input type="number" id="metroBpm" min="20" max="300" value="120">
-    <button id="tapTempoBtn" class="secondary">タップでBPM測定</button>
-    <div class="rate-info" id="metroSyncInfo"></div>
-    <button id="setBeatAnchorBtn" class="secondary">タップでクリックの先頭を設定</button>
-    <div class="loop-time" id="beatAnchorDisplay">拍の基準: 未設定</div>
-    <div class="metro-controls">
-      <button id="metroToggleBtn">再生</button>
-      <div class="beat-indicator" id="beatIndicator"></div>
+    <div class="card-body">
+      <label for="videoUrl">YouTube URL</label>
+      <input type="text" id="videoUrl" placeholder="https://www.youtube.com/watch?v=...">
+      <button id="loadBtn">読み込む</button>
+      <div class="player-wrap"><div id="player"></div></div>
+      <label for="videoTitle">動画タイトル(自動取得・編集可)</label>
+      <input type="text" id="videoTitle" placeholder="動画タイトル">
     </div>
   </div>
 
-  <div class="card">
-    <h2>練習ログを保存</h2>
-    <label for="folderSelect">フォルダ(セットリスト)</label>
-    <select id="folderSelect"></select>
-    <label for="memo">練習メモ</label>
-    <textarea id="memo" placeholder="例: ベースのゴーストノート注意、Tab譜動画URLなど"></textarea>
-    <button id="saveBtn">この曲を保存</button>
-    <div class="empty-msg" style="padding:0;margin-top:10px;">保存済み一覧は左上の &#9776; メニューから確認できます。</div>
+  <div class="card" data-panel="speed">
+    <div class="card-header">
+      <h2>BPM連動スピード制御</h2>
+      <button class="panel-toggle" aria-label="開閉">▼</button>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div>
+          <label for="originalBpm">原曲BPM</label>
+          <input type="number" id="originalBpm" min="1" placeholder="例: 135">
+        </div>
+        <div>
+          <label for="targetBpm">目標BPM</label>
+          <input type="number" id="targetBpm" min="1" placeholder="例: 108">
+        </div>
+      </div>
+      <button id="applyRateBtn">速度に反映</button>
+      <button id="resetRateBtn" class="secondary">等速(1.0x)に戻す</button>
+      <div class="rate-info" id="rateInfo">動画を読み込んでBPMを入力してください。</div>
+    </div>
+  </div>
+
+  <div class="card" data-panel="loop">
+    <div class="card-header">
+      <h2>区間ループ (A-Bリピート)</h2>
+      <button class="panel-toggle" aria-label="開閉">▼</button>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div>
+          <button id="setABtn" class="secondary">A地点を設定</button>
+          <div class="loop-time" id="loopADisplay">A: 未設定</div>
+        </div>
+        <div>
+          <button id="setBBtn" class="secondary">B地点を設定</button>
+          <div class="loop-time" id="loopBDisplay">B: 未設定</div>
+        </div>
+      </div>
+      <label class="checkbox-label"><input type="checkbox" id="loopEnabled"> ループ再生を有効にする</label>
+      <button id="clearLoopBtn" class="secondary">A/Bをクリア</button>
+    </div>
+  </div>
+
+  <div class="card" data-panel="metro">
+    <div class="card-header">
+      <h2>練習用メトロノーム</h2>
+      <button class="panel-toggle" aria-label="開閉">▼</button>
+    </div>
+    <div class="card-body">
+      <label class="radio-label"><input type="radio" name="metroMode" value="independent" checked> 独立モード(下のBPMで鳴らす)</label>
+      <label class="radio-label"><input type="radio" name="metroMode" value="sync"> 動画同期モード(再生速度に自動追従)</label>
+      <label for="metroBpm">BPM(独立モード時に使用)</label>
+      <input type="number" id="metroBpm" min="20" max="300" value="120">
+      <button id="tapTempoBtn" class="secondary">タップでBPM測定</button>
+      <div class="rate-info" id="metroSyncInfo"></div>
+      <button id="setBeatAnchorBtn" class="secondary">タップでクリックの先頭を設定</button>
+      <div class="loop-time" id="beatAnchorDisplay">拍の基準: 未設定</div>
+      <div class="metro-controls">
+        <button id="metroToggleBtn">再生</button>
+        <div class="beat-indicator" id="beatIndicator"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-panel="save">
+    <div class="card-header">
+      <h2>練習ログを保存</h2>
+      <button class="panel-toggle" aria-label="開閉">▼</button>
+    </div>
+    <div class="card-body">
+      <label for="folderSelect">フォルダ(セットリスト)</label>
+      <select id="folderSelect"></select>
+      <label for="memo">練習メモ</label>
+      <textarea id="memo" placeholder="例: ベースのゴーストノート注意、Tab譜動画URLなど"></textarea>
+      <button id="saveBtn">この曲を保存</button>
+      <div class="empty-msg" style="padding:0;margin-top:10px;">保存済み一覧は左上の &#9776; メニューから確認できます。</div>
+    </div>
   </div>
 
   <div class="video-controller" id="videoController">
@@ -1184,6 +1234,34 @@
     } else {
       player.playVideo();
     }
+  });
+
+  // --- パネルの開閉 ---
+  const PANEL_STATE_KEY = 'ytBpmPanelState';
+  const defaultOpenPanels = { video: true, speed: false, loop: false, metro: false, save: false };
+
+  function loadPanelState() {
+    try {
+      return { ...defaultOpenPanels, ...JSON.parse(localStorage.getItem(PANEL_STATE_KEY)) };
+    } catch {
+      return { ...defaultOpenPanels };
+    }
+  }
+
+  function savePanelState(state) {
+    localStorage.setItem(PANEL_STATE_KEY, JSON.stringify(state));
+  }
+
+  const panelState = loadPanelState();
+  document.querySelectorAll('.card[data-panel]').forEach(card => {
+    const key = card.dataset.panel;
+    const isOpen = panelState[key] !== undefined ? panelState[key] : true;
+    card.classList.toggle('collapsed', !isOpen);
+    card.querySelector('.panel-toggle').addEventListener('click', () => {
+      const collapsed = card.classList.toggle('collapsed');
+      panelState[key] = !collapsed;
+      savePanelState(panelState);
+    });
   });
 </script>
 </body>
