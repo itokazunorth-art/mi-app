@@ -10,7 +10,7 @@
     font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
     max-width: 640px;
     margin: 24px auto;
-    padding: 0 16px 120px;
+    padding: 0 16px 60px;
     background: #f5f5f7;
     color: #1d1d1f;
   }
@@ -141,38 +141,6 @@
     margin-top: 8px;
     font-size: 0.85rem;
     padding: 6px 8px;
-  }
-  .video-controller {
-    position: fixed;
-    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
-    left: 0;
-    right: 0;
-    z-index: 600;
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    pointer-events: none;
-    transition: opacity 0.2s ease, transform 0.2s ease;
-  }
-  .video-controller.hidden {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  .ctrl-btn {
-    pointer-events: auto;
-    margin: 0;
-    padding: 14px 20px;
-    border: none;
-    border-radius: 999px;
-    background: rgba(29,29,31,0.85);
-    color: #fff;
-    font-size: 1rem;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.3);
-  }
-  .ctrl-btn.primary {
-    background: rgba(0,113,227,0.9);
-    font-size: 1.3rem;
-    padding: 14px 26px;
   }
   h2 {
     font-size: 1.05rem;
@@ -380,6 +348,18 @@
     </div>
   </div>
 
+  <div class="card" data-panel="control">
+    <div class="card-header">
+      <h2>動画コントロール</h2>
+      <button class="panel-toggle" aria-label="開閉">▼</button>
+    </div>
+    <div class="card-body">
+      <button id="seekBackBtn" class="secondary" aria-label="10秒戻る">-10秒</button>
+      <button id="playPauseBtn" aria-label="再生・一時停止">&#9654; 再生</button>
+      <button id="seekFwdBtn" class="secondary" aria-label="10秒進む">+10秒</button>
+    </div>
+  </div>
+
   <div class="card" data-panel="speed">
     <div class="card-header">
       <h2>BPM連動スピード制御</h2>
@@ -457,12 +437,6 @@
       <button id="saveBtn">この曲を保存</button>
       <div class="empty-msg" style="padding:0;margin-top:10px;">保存済み一覧は左上の &#9776; メニューから確認できます。</div>
     </div>
-  </div>
-
-  <div class="video-controller" id="videoController">
-    <button id="seekBackBtn" class="ctrl-btn" aria-label="10秒戻る">-10秒</button>
-    <button id="playPauseBtn" class="ctrl-btn primary" aria-label="再生・一時停止">&#9654;</button>
-    <button id="seekFwdBtn" class="ctrl-btn" aria-label="10秒進む">+10秒</button>
   </div>
 
 <script>
@@ -1186,33 +1160,11 @@
   refreshFolderSelectOptions('');
   renderList();
 
-  // --- 画面下部の動画コントローラー ---
-  const videoController = document.getElementById('videoController');
-  let scrollHideTimer = null;
-
-  // Androidブラウザが上スクロール時だけ再表示する独自の下部ツールバーは
-  // visualViewport/safe-area-insetのどちらにも反映されず、Web側から検知
-  // する手段がない。そのため動的な位置調整はせず、常にその高さより上に
-  // 来る余白(CSSのbottom値)を静的に確保する。その分ページ側にも余白を
-  // 足して、コンテンツと重なって見えないようにしている。
-  function hideVideoController() {
-    videoController.classList.add('hidden');
-  }
-
-  function showVideoController() {
-    videoController.classList.remove('hidden');
-  }
-
-  window.addEventListener('scroll', () => {
-    hideVideoController();
-    clearTimeout(scrollHideTimer);
-    scrollHideTimer = setTimeout(showVideoController, 300);
-  }, { passive: true });
-
+  // --- 動画コントロール(-10秒/再生/+10秒) ---
   function updatePlayPauseIcon() {
     if (!playerReady) return;
     const playing = player.getPlayerState() === YT.PlayerState.PLAYING;
-    document.getElementById('playPauseBtn').innerHTML = playing ? '&#10074;&#10074;' : '&#9654;';
+    document.getElementById('playPauseBtn').innerHTML = playing ? '&#10074;&#10074; 一時停止' : '&#9654; 再生';
   }
 
   document.getElementById('seekBackBtn').addEventListener('click', () => {
@@ -1238,7 +1190,7 @@
 
   // --- パネルの開閉 ---
   const PANEL_STATE_KEY = 'ytBpmPanelState';
-  const defaultOpenPanels = { video: true, speed: false, loop: false, metro: false, save: false };
+  const defaultOpenPanels = { video: true, control: true, speed: false, loop: false, metro: false, save: false };
 
   function loadPanelState() {
     try {
