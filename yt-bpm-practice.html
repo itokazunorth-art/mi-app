@@ -339,6 +339,7 @@
       </select>
       <button id="newFolderBtn" class="secondary">＋ フォルダ作成</button>
     </div>
+    <label class="checkbox-label" style="margin-top:0;"><input type="checkbox" id="continuousPlayToggle"> フォルダ内で連続再生する</label>
     <div id="list"></div>
   </aside>
 
@@ -447,6 +448,8 @@
   let currentRate = 1;
   let lastIdealRate;
   let suppressFieldReset = false;
+  let activePlaybackQueue = [];
+  let activePlaybackIndex = -1;
 
   function extractVideoId(url) {
     const patterns = [
@@ -489,9 +492,39 @@
     handleNewVideoIfReady();
   }
 
-  function onPlayerStateChange() {
+  function onPlayerStateChange(event) {
     handleNewVideoIfReady();
     updatePlayPauseIcon();
+    if (event.data === YT.PlayerState.ENDED && document.getElementById('continuousPlayToggle').checked) {
+      playNextInQueue();
+    }
+  }
+
+  function setActivePlaybackQueueForItem(item) {
+    const sorted = sortItems(loadList(), document.getElementById('sortSelect').value);
+    const key = item.folderId || null;
+    activePlaybackQueue = sorted.filter(i => (i.folderId || null) === key);
+    activePlaybackIndex = activePlaybackQueue.findIndex(i => i.videoId === item.videoId);
+  }
+
+  function playNextInQueue() {
+    if (activePlaybackIndex < 0 || activePlaybackIndex + 1 >= activePlaybackQueue.length) return;
+    activePlaybackIndex += 1;
+    loadSavedItem(activePlaybackQueue[activePlaybackIndex]);
+  }
+
+  function loadSavedItem(item) {
+    suppressFieldReset = true;
+    document.getElementById('videoUrl').value = item.url;
+    document.getElementById('videoTitle').value = item.title || '';
+    document.getElementById('originalBpm').value = item.originalBpm || '';
+    document.getElementById('targetBpm').value = item.lastBpm || '';
+    document.getElementById('memo').value = item.memo || '';
+    refreshFolderSelectOptions(item.folderId || '');
+    if (item.originalBpm) {
+      document.getElementById('metroBpm').value = item.originalBpm;
+    }
+    document.getElementById('loadBtn').click();
   }
 
   function onPlayerRateChange(event) {
@@ -591,6 +624,11 @@
     }
     currentVideoId = videoId;
     titleFilledForVideoId = null;
+    if (!suppressFieldReset) {
+      // 手動でのURL読み込み: マイリスト/連続再生のキューとは無関係になる
+      activePlaybackQueue = [];
+      activePlaybackIndex = -1;
+    }
     if (!window.YT || !window.YT.Player) {
       loadYouTubeApi();
     } else if (!player) {
@@ -1008,17 +1046,8 @@
     loadBtn.className = 'secondary';
     loadBtn.textContent = '読み込む';
     loadBtn.addEventListener('click', () => {
-      suppressFieldReset = true;
-      document.getElementById('videoUrl').value = item.url;
-      document.getElementById('videoTitle').value = item.title || '';
-      document.getElementById('originalBpm').value = item.originalBpm || '';
-      document.getElementById('targetBpm').value = item.lastBpm || '';
-      document.getElementById('memo').value = item.memo || '';
-      refreshFolderSelectOptions(item.folderId || '');
-      if (item.originalBpm) {
-        document.getElementById('metroBpm').value = item.originalBpm;
-      }
-      document.getElementById('loadBtn').click();
+      setActivePlaybackQueueForItem(item);
+      loadSavedItem(item);
       closeDrawer();
     });
     const delBtn = document.createElement('button');
@@ -1172,6 +1201,13 @@
   }
   refreshFolderSelectOptions('');
   renderList();
+
+  const CONTINUOUS_PLAY_KEY = 'ytBpmContinuousPlay';
+  const continuousPlayToggle = document.getElementById('continuousPlayToggle');
+  continuousPlayToggle.checked = localStorage.getItem(CONTINUOUS_PLAY_KEY) === 'true';
+  continuousPlayToggle.addEventListener('change', () => {
+    localStorage.setItem(CONTINUOUS_PLAY_KEY, continuousPlayToggle.checked);
+  });
 
   // --- 動画コントロール(-10秒/再生/+10秒) ---
   function updatePlayPauseIcon() {
