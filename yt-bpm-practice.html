@@ -153,6 +153,15 @@
     margin-bottom: 20px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   }
+  .video-control-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+  }
+  .video-control-row button {
+    margin: 0;
+  }
   .card-header {
     display: flex;
     align-items: center;
@@ -348,16 +357,10 @@
     </div>
   </div>
 
-  <div class="card" data-panel="control">
-    <div class="card-header">
-      <h2>動画コントロール</h2>
-      <button class="panel-toggle" aria-label="開閉">▼</button>
-    </div>
-    <div class="card-body">
-      <button id="seekBackBtn" class="secondary" aria-label="10秒戻る">-10秒</button>
-      <button id="playPauseBtn" aria-label="再生・一時停止">&#9654; 再生</button>
-      <button id="seekFwdBtn" class="secondary" aria-label="10秒進む">+10秒</button>
-    </div>
+  <div class="card video-control-row">
+    <button id="seekBackBtn" class="secondary" aria-label="10秒戻る">-10秒</button>
+    <button id="playPauseBtn" aria-label="再生・一時停止">&#9654; 再生</button>
+    <button id="seekFwdBtn" class="secondary" aria-label="10秒進む">+10秒</button>
   </div>
 
   <div class="card" data-panel="speed">
@@ -1190,7 +1193,7 @@
 
   // --- パネルの開閉 ---
   const PANEL_STATE_KEY = 'ytBpmPanelState';
-  const defaultOpenPanels = { video: true, control: true, speed: false, loop: false, metro: false, save: false };
+  const defaultOpenPanels = { video: true, speed: false, loop: false, metro: false, save: false };
 
   function loadPanelState() {
     try {
