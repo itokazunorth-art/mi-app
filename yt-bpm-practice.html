@@ -894,6 +894,9 @@
   const drawerOverlay = document.getElementById('drawerOverlay');
 
   function openDrawer() {
+    // 拡大表示で横にパンしていると、position:fixedのドロワーが画面外に
+    // ズレて見えることがあるため、開く前に横スクロール位置をリセットする
+    window.scrollTo({ left: 0, top: window.scrollY, behavior: 'auto' });
     listDrawer.classList.add('open');
     drawerOverlay.classList.add('open');
   }
